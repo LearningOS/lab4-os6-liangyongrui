@@ -5,10 +5,13 @@
 //! and the replacement and transfer of control flow of different applications are executed.
 
 
-use super::__switch;
+use super::{__switch, TaskInfo};
 use super::{fetch_task, TaskStatus};
 use super::{TaskContext, TaskControlBlock};
+use crate::config::PAGE_SIZE;
+use crate::mm::{VirtAddr, MapPermission};
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_us;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
 use lazy_static::*;
@@ -35,7 +38,7 @@ impl Processor {
         self.current.take()
     }
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
-        self.current.as_ref().map(|task| Arc::clone(task))
+        self.current.as_ref().map(Arc::clone)
     }
 }
 
@@ -102,4 +105,50 @@ pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     unsafe {
         __switch(switched_task_cx_ptr, idle_task_cx_ptr);
     }
+}
+
+
+pub fn add_syscall_times(syscall_id: usize) {
+    let task = current_task().unwrap();
+    task.inner_exclusive_access().syscall_times[syscall_id] += 1;
+}
+
+pub fn get_current_task_info() -> TaskInfo {
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    TaskInfo {
+        syscall_times: inner.syscall_times,
+        status: inner.task_status,
+        time: (get_time_us() - inner.start_time) / 1000,
+    }
+}
+
+pub fn mmap(start: usize, len: usize, port: usize) -> isize {
+    if start & (PAGE_SIZE - 1) != 0 || port & 0x7 == 0 || port & !0x7 != 0 {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    if !task.inner_exclusive_access().memory_set.insert_framed_area(
+        VirtAddr(start),
+        VirtAddr(start + len),
+        MapPermission::from_bits_truncate((port << 1) as u8) | MapPermission::U,
+    ) {
+        return -1;
+    }
+    0
+}
+
+pub fn munmap(start: usize, len: usize) -> isize {
+    if start & (PAGE_SIZE - 1) != 0 {
+        return -1;
+    }
+    let task = current_task().unwrap();
+    if !task
+        .inner_exclusive_access()
+        .memory_set
+        .unmap(VirtAddr(start), VirtAddr(start + len))
+    {
+        return -1;
+    }
+    0
 }
