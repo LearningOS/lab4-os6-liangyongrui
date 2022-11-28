@@ -1,9 +1,12 @@
 //! File and filesystem-related syscalls
 
+use crate::fs::increase_nlink;
 use crate::fs::open_file;
 use crate::fs::OpenFlags;
 use crate::fs::Stat;
+use crate::fs::ROOT_INODE;
 use crate::mm::translated_byte_buffer;
+use crate::mm::translated_refmut;
 use crate::mm::translated_str;
 use crate::mm::UserBuffer;
 use crate::task::current_task;
@@ -71,14 +74,38 @@ pub fn sys_close(fd: usize) -> isize {
 }
 
 // YOUR JOB: 扩展 easy-fs 和内核以实现以下三个 syscall
-pub fn sys_fstat(_fd: usize, _st: *mut Stat) -> isize {
-    -1
+pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
+    let st = translated_refmut(current_user_token(), st);
+    let tcb = current_task().unwrap();
+    let inner = tcb.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+    let Some(ref inode) = inner.fd_table[fd] else { return -1; };
+    *st = inode.status();
+    0
 }
 
-pub fn sys_linkat(_old_name: *const u8, _new_name: *const u8) -> isize {
-    -1
+pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
+    let token = current_user_token();
+    let old_name = translated_str(token, old_name);
+    let new_name = translated_str(token, new_name);
+    if ROOT_INODE.find(&new_name).is_some() || increase_nlink(&old_name, &new_name).is_none() {
+        return -1;
+    }
+    0
 }
 
-pub fn sys_unlinkat(_name: *const u8) -> isize {
+pub fn sys_unlinkat(name: *const u8) -> isize {
+    let token = current_user_token();
+    let name = translated_str(token, name);
+    let (success, clear_inode) =
+        ROOT_INODE.modify_disk_inode(|disk_inode| ROOT_INODE.unlink(disk_inode, &name));
+    if success {
+        // if let Some(inode) = clear_inode {
+        //     inode.clear();
+        // }
+        return 0;
+    }
     -1
 }

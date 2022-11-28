@@ -1,14 +1,15 @@
-mod stdio;
 mod inode;
+mod stdio;
 
 use crate::mm::UserBuffer;
 
 /// The common abstraction of all IO resources
-pub trait File : Send + Sync {
+pub trait File: Send + Sync {
     fn readable(&self) -> bool;
     fn writable(&self) -> bool;
     fn read(&self, buf: UserBuffer) -> usize;
     fn write(&self, buf: UserBuffer) -> usize;
+    fn status(&self) -> Stat;
 }
 
 /// The stat of a inode
@@ -37,7 +38,7 @@ bitflags! {
         /// ordinary regular file
         const FILE  = 0o100000;
     }
-}    
+}
 
+pub use inode::*;
 pub use stdio::{Stdin, Stdout};
-pub use inode::{OSInode, open_file, OpenFlags, list_apps};

@@ -70,7 +70,7 @@ impl SuperBlock {
 }
 
 /// Type of a disk inode
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum DiskInodeType {
     File,
     Directory,
@@ -83,6 +83,7 @@ type DataBlock = [u8; BLOCK_SZ];
 
 /// A disk inode
 #[repr(C)]
+#[derive(Debug)]
 pub struct DiskInode {
     pub size: u32,
     pub direct: [u32; INODE_DIRECT_COUNT],

@@ -1,4 +1,4 @@
-use super::{File, Stat};
+use super::{File, Stat, StatMode};
 use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPSafeCell;
@@ -45,16 +45,6 @@ impl OSInode {
             v.extend_from_slice(&buffer[..len]);
         }
         v
-    }
-
-    pub fn status(&self) -> Stat {
-        Stat{
-            dev: 0,
-            ino: todo!(),
-            mode: todo!(),
-            nlink: todo!(),
-            pad: todo!(),
-        }
     }
 }
 
@@ -125,7 +115,27 @@ pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     }
 }
 
+pub fn increase_nlink(old_name: &str, new_name: &str) -> Option<Arc<Inode>> {
+    ROOT_INODE
+        .modify_disk_inode(|disk_inode| ROOT_INODE.copy_dir_entry(disk_inode, old_name, new_name));
+    ROOT_INODE.find(old_name).inspect(|inode| {
+        inode.modify_disk_inode(|disk_inode| {
+            disk_inode.nlink += 1;
+        })
+    })
+}
+
 impl File for OSInode {
+    fn status(&self) -> Stat {
+        let (ino, nlink, mode) = self.inner.exclusive_access().inode.state(&ROOT_INODE);
+        Stat {
+            dev: 0,
+            ino: ino as u64,
+            mode: if mode { StatMode::FILE } else { StatMode::DIR },
+            nlink,
+            pad: [0; 7],
+        }
+    }
     fn readable(&self) -> bool {
         self.readable
     }
