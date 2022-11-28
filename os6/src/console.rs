@@ -79,7 +79,7 @@ macro_rules! println_colorized {
         $crate::console::print_colorized(format_args!(concat!($fmt, "\n") $(, $($arg)+)?), $foreground_color as u8, $background_color as u8);
     }
 }
-
+#[allow(clippy::upper_case_acronyms)]
 #[allow(dead_code)]
 pub enum ANSICON {
     Reset = 0,

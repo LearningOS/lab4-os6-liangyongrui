@@ -17,12 +17,8 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::PAGE_SIZE;
 use crate::fs::{open_file, OpenFlags};
-use crate::mm::MapPermission;
-use crate::mm::VirtAddr;
 pub use crate::syscall::process::TaskInfo;
-use crate::timer::get_time_us;
 use alloc::sync::Arc;
 use lazy_static::*;
 use manager::fetch_task;
