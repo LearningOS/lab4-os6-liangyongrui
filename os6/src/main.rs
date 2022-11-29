@@ -19,6 +19,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![feature(result_option_inspect)]
 
 #[macro_use]
 extern crate bitflags;
