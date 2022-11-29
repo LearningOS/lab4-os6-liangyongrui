@@ -102,9 +102,9 @@ pub fn sys_unlinkat(name: *const u8) -> isize {
     let (success, clear_inode) =
         ROOT_INODE.modify_disk_inode(|disk_inode| ROOT_INODE.unlink(disk_inode, &name));
     if success {
-        // if let Some(inode) = clear_inode {
-        //     inode.clear();
-        // }
+        if let Some(inode) = clear_inode {
+            inode.clear();
+        }
         return 0;
     }
     -1

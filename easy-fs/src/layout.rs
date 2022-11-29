@@ -223,6 +223,7 @@ impl DiskInode {
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
                 while (a0 < a1) || (a0 == a1 && b0 < b1) {
+                    // log::debug!("a0: {a0}, b0: {b0}, a1: {a1}, b1: {b1}");
                     if b0 == 0 {
                         indirect2[a0] = new_blocks.next().unwrap();
                     }
@@ -293,10 +294,8 @@ impl DiskInode {
                     get_block_cache(ti as usize, Arc::clone(block_device))
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
-                            indirect1
-                                .iter()
-                                .take(INODE_INDIRECT1_COUNT)
-                                .for_each(|&tj| v.push(tj));
+                            log::debug!("[7] clear_size, indirect1:{indirect1:?}");
+                            v.extend_from_slice(indirect1);
                         });
                     //indirect2[i] = 0;
                 });

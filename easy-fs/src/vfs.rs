@@ -2,9 +2,9 @@ use super::{
     block_cache_sync_all, get_block_cache, BlockDevice, DirEntry, DiskInode, DiskInodeType,
     EasyFileSystem, DIRENT_SZ,
 };
-use alloc::{string::String, collections::BTreeSet};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use alloc::{collections::BTreeSet, string::String};
 use spin::{Mutex, MutexGuard};
 
 /// Virtual filesystem layer over easy-fs
@@ -167,6 +167,7 @@ impl Inode {
         disk_inode: &mut DiskInode,
         fs: &mut MutexGuard<EasyFileSystem>,
     ) {
+        let old = disk_inode.size;
         if new_size < disk_inode.size {
             return;
         }
@@ -258,19 +259,15 @@ impl Inode {
     /// Clear the data in current inode
     pub fn clear(&self) {
         let mut fs = self.fs.lock();
-        log::debug!("clear A");
         self.modify_disk_inode(|disk_inode| {
             log::debug!("clear disk_inode {disk_inode:?}");
             let size = disk_inode.size;
             let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
             assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
-            log::debug!("clear C: {} {}", data_blocks_dealloc.len(), data_blocks_dealloc.iter().collect::<BTreeSet<_>>().len());
             for data_block in data_blocks_dealloc.into_iter() {
                 fs.dealloc_data(data_block);
             }
         });
-        log::debug!("clear D");
         block_cache_sync_all();
-        log::debug!("clear E");
     }
 }
